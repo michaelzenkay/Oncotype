@@ -10,14 +10,40 @@ import torchvision.transforms as transforms
 import random
 import cv2
 
-import sys
-sys.path.append('/data/mike/src/tools')
-import imgtools
+def bbox(seg, dims=1):
+    # Find extents of segmentation as a box with dimensions that are divisible by 'dim'
+    x_indices = np.where(np.any(seg[:, :], axis=0))[0]
+    y_indices = np.where(np.any(seg[:, :], axis=1))[0]
 
-import sys
-sys.path.append('/data/mike/src/tools')
-import imgtools
+    if x_indices.shape[0]:
 
+        x1, x2 = x_indices[[0, -1]]
+        y1, y2 = y_indices[[0, -1]]
+
+        # Increment x2 and y2 by 1 since they're not part of the initial box
+        x2, y2 = [x2 + 1, y2 + 1]
+
+        # Minimum crop size (multiple of dims)
+        dim = dims * max(math.ceil((x2 - x1) / dims), math.ceil((y2 - y1) / dims))
+
+        # Find bbox with dim x dim crop size
+        x1, x2 = [int((x1 + x2) / 2 - dim / 2), int((x1 + x2) / 2 + dim / 2)]
+        y1, y2 = [int((y1 + y2) / 2 - dim / 2), int((y1 + y2) / 2 + dim / 2)]
+
+        # Boundary Conditions
+        if (x1 + x2) / 2 - dim / 2 < 0:
+            x1, x2 = [0, dim]
+        if (x1 + x2) / 2 + dim / 2 > seg.shape[0]:
+            x1, x2 = [seg.shape[0] - dim, seg.shape[0]]
+        if (y1 + y2) / 2 - dim / 2 < 0:
+            y1, y2 = [0, dim]
+        if (y1 + y2) / 2 + dim / 2 > seg.shape[1]:
+            y1, y2 = [seg.shape[1] - dim, seg.shape[1]]
+
+    else:
+        x1, x2, y1, y2 = 0, 0, 0, 0
+
+    return x1, x2, y1, y2
 
 def create_MRI_breast_mask(image, threshold=15, size_denominator=55):
     """
@@ -299,7 +325,6 @@ class SegDatasetGenerator(Dataset):
     def __len__(self):
 
         return len(self.listImagePaths)
-
 
 class camDatasetGenerator(Dataset):
 

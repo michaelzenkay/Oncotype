@@ -1,14 +1,7 @@
 import os
 import numpy as np
-
 import torch
 import torch.nn as nn
-import torch.backends.cudnn as cudnn
-import torch.nn.functional as F
-import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
-from sklearn.metrics import roc_auc_score
-
 import torchvision
 
 class ResNet101(nn.Module):

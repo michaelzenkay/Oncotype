@@ -1,9 +1,8 @@
 from glob import glob
 import os
 from os.path import join, dirname, basename
+
 from ClassNetTrainer import ClassNetTrainer
-from axplot import inference_plotter
-from roc import roc
 
 #--------------------------------------------------------------------------------
 def main ():
@@ -30,10 +29,6 @@ def main ():
 ## TRAIN - ispy_T1 + weak
     runTrain(arch, classes, batch, resize, crop, folds, pathDataset, pathCkpt, nameCkpt, modelfn=modelfn, init=init, lr = lr)
 
-## TEST - ispy_T1
-    runTest(arch, classes, batch, resize, crop, folds, pathDataset, pathCkpt, nameCkpt)
-    ROC_vis(pathDataset, pathCkpt, nameCkpt, folds)
-
 ## INFER - ispy_T2,3,4
     csv = 'path/to/inference.csv'
     csv_out = 'path/to/output.csv'
@@ -53,32 +48,6 @@ def runTrain(arch, classes, batch, resize, crop, folds, pathDataset,pathCkpt, na
 
         network = ClassNetTrainer()
         network.train(trainfn, valfn, arch, pretrain, classes, batch, epochs, resize, crop, modelfn, init, pathCkpt, NameCkpt, lr)
-
-#--------------------------------------------------------------------------------
-def runTest(arch, classes, batch, resize, crop, folds, pathDataset, pathCkpt, nameCkpt):
-    testfn = join(pathDataset, 'test.csv')
-    for fold in range(1, folds+1):
-        modelfn = sorted(glob(join(pathCkpt, nameCkpt + str(fold) + '*.pth')))[-1]
-        csv_out = join(dirname(modelfn), 'results_' + str(fold) + '_' + nameCkpt + '.csv')
-        network = ClassNetTrainer()
-        print('Testing with ' + testfn + ' on ' + modelfn + ' saving to ' + csv_out)
-        network.test(testfn, modelfn, arch, classes, batch, resize, crop, csv_out)
-
-#--------------------------------------------------------------------------------
-def ROC_vis(pathDataset,pathCkpt,nameCkpt,folds):
-    rocfile = join(pathDataset,'roc.png')
-    analysisfile = join(pathDataset,'analysis_wln.csv')
-    print('Running ROC Analysis at ' + analysisfile + ', image to ' + rocfile)
-    results_csvs=glob(join(pathCkpt, 'results_*_' + nameCkpt + '*.csv'))
-    roc(results_csvs,rocfile,analysisfile,folds)
-
-    for fold in range(1,folds+1):
-        output = join(pathDataset, 'result_fold' + str(fold).zfill(1))
-        if not os.path.exists(output):
-            os.mkdir(output, mode=0o777)
-        print('plotting results to ' + output)
-        plotter = inference_plotter(results_csvs[fold-1],output)
-        plotter.plot_csv_results()
 
 #--------------------------------------------------------------------------------
 def Infer(csv, modelfn, batch=50, csv_out=None, gpu=True):

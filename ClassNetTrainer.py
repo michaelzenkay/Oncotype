@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import shutil
 from glob import glob
-from DensenetModels import DenseNet121, DenseNet169, DenseNet201, ResNet101, VGG, MLP
+from ResnetModels import ResNet101
 from DatasetGenerator import SegDatasetGenerator
 
 #-------------------------------------------------------------------------------- 
@@ -32,9 +32,7 @@ class ClassNetTrainer():
             transfer=True
         else:
             transfer=None
-        if arch == 'DENSE-NET-121': model = DenseNet121(classes, pretrained, transfer)
-        elif arch =='res': model = ResNet101(classes, pretrained,transfer)
-        elif arch =='vgg': model = VGG(classes, pretrained,transfer)
+        if arch =='res': model = ResNet101(classes, pretrained,transfer)
         model = torch.nn.DataParallel(model,device_ids=gpus)
         device = torch.device("cuda:0")
         model.to(device)
@@ -105,28 +103,15 @@ class ClassNetTrainer():
         model.eval()
         with torch.no_grad():
             outLoss = 0
-            for i, (img, cla, imgfn) in enumerate(dataLoader): #, clafn, clin) in enumerate (dataLoader):#
+            for i, (img, cla, imgfn) in enumerate(dataLoader):
                 lbl_true = cla.cuda()
                 lbl_probs = model.forward(img.cuda())
                 lossvalue = loss(lbl_probs, lbl_true)
                 outLoss += lossvalue.item()
         return outLoss
 
-    def epochTest(self, model, dataLoader, csv_out,length):
-        model.eval()
-        self.write2csv(csv_out, 'imgfn,lbl_true,prob0,prob1,lbl_pred,\n', mode='w')
-        for i, (img, cla, imgfn) in enumerate(dataLoader): # , clin) in enumerate(dataLoader):
-            lbl_prob = model.forward(img.cuda())
-            lbl_prob_cpu = lbl_prob.cpu().detach()
-            for n in range(0, len(cla)):
-                gt = str(float(cla[n]))
-                prob0 = str(float(lbl_prob_cpu[n][0]))
-                prob1 = str(float(lbl_prob_cpu[n][1]))
-                pred = str(int(np.argmax(lbl_prob_cpu[n])))
-                self.write2csv(csv_out, imgfn[n] + ',' + gt + ',' + prob0 + ',' + prob1 + ',' + pred + '\n')
 
     ## -----------------Main Functions ---------##
-
     def train(self, trainfn, valfn, arch, pretrained, classes, batch, epochs, resize, crop, modelfn, init, pathCkpt,
               nameCkpt, lr, gpus=[0,1,2]):
         self.arch = arch
@@ -188,17 +173,6 @@ class ClassNetTrainer():
             else:
                 print('Epoch [' + str(epochID + 1) + ']  ' + str(lossVal))
 
-    def test(self, testfn, modelfn, arch, classes, batch, resize, crop, csv_out):
-        self.arch = arch
-        model = self.set_arch(arch, classes, None, False)
-        dataset = SegDatasetGenerator(pathDatasetFile=testfn, augment=False)
-        dataLoaderTest = DataLoader(dataset=dataset, batch_size=batch, shuffle=False, num_workers=6, pin_memory=True)
-
-        modelCheckpoint = torch.load(modelfn)
-        print('Loading model from ' + modelfn)
-        model.load_state_dict(modelCheckpoint['state_dict'])
-        self.epochTest(model, dataLoaderTest, csv_out, dataset.__len__())
-
     def inference(self,inference_csv, arch, classes, batch, resize, crop, modelfn, csv_out, gpu):
         # csv_out is results file, will contain the follwing results:
         
@@ -208,13 +182,8 @@ class ClassNetTrainer():
         else:
             device= torch.device("cpu")
         # -------------------- SETTINGS: NETWORK ARCHITECTURE, MODEL LOAD
-        if arch == 'DENSE-NET-121':
-            model = DenseNet121(classes, False).to(device)
-        elif arch == 'DENSE-NET-169':
-            model = DenseNet169(classes, False).to(device)
-        elif arch == 'DENSE-NET-201':
-            model = DenseNet201(classes, False).to(device)
-        elif arch == 'res':
+
+        if arch == 'res':
             model = ResNet101(classes, False)
 
         if gpu==True:
@@ -226,7 +195,7 @@ class ClassNetTrainer():
             model.load_state_dict(modelCheckpoint['state_dict'])
         model.to(device)
 
-        datasetInf = DatasetGenerator(pathDatasetFile=inference_csv,inference=True)
+        datasetInf = SegDatasetGenerator(pathDatasetFile=inference_csv,inference=True)
         dataLoaderInf = DataLoader(dataset=datasetInf, batch_size=batch, num_workers=1, shuffle=False, pin_memory=True)
 
         model.eval()
