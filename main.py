@@ -1,24 +1,32 @@
 from glob import glob
 import os
 from os.path import join, dirname, basename
-
+import preprocess
 from ClassNetTrainer import ClassNetTrainer
 
 #--------------------------------------------------------------------------------
-def main ():
+def main (infer=False):
     arch = 'res'
-    modelfn = './dense121_wk20201031.pth'
+    modelfn = '../models/odx.pth'
     nameCkpt = 'save_name'
-
+    pathNii = '../imgs'
+    pathPreprocessed = '../preprocessed'
+    pathDataset = './dataset/'
+    pathCkpt = join(pathDataset,nameCkpt)
+    csvFns = './imgfns.csv'
+    
+    # Preprocessing
+    preprocess.preprocess_dir(pathNii, pathPreprocessed, csvFns)
+    
+    # K fold Splitting
+    if infer==False:
+        splitter.k_fold(csvFns,pathDataset)
+    
     ## Initialization from a model
     # init = [None, 'checkpoint', 'transfer', 'warmstart']
     init = 'warmstart'
 
-    # Dataset
-    pathDataset = 'path/to/dataset'
-
-    # Save
-    pathCkpt = pathDataset
+    # Hyperparameters
     classes = 2
     batch = 50
     resize = 256
@@ -26,11 +34,10 @@ def main ():
     folds = 5
     lr = 0.0005
 
-## TRAIN - ispy_T1 + weak
+## TRAIN
     runTrain(arch, classes, batch, resize, crop, folds, pathDataset, pathCkpt, nameCkpt, modelfn=modelfn, init=init, lr = lr)
 
-## INFER - ispy_T2,3,4
-    csv = 'path/to/inference.csv'
+## INFER
     csv_out = 'path/to/output.csv'
 
     network = ClassNetTrainer()
